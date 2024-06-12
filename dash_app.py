@@ -4,108 +4,98 @@ from dash import dcc, html
 import plotly.express as px
 import pandas as pd
 
-dark_mode = [dbc.themes.DARKLY]
+dark_mode = [dbc.themes.DARKLY] # putting in dark mode cause we cool like that 
 app = dash.Dash(__name__, title='Data Dashboard', external_stylesheets=[dark_mode])
 
-df = pd.read_csv('dummy_data.csv')
+df = pd.read_csv('dummy_data.csv') # read in CSV -> how does this change w the database? sus 
 
+# break down the page into HTML DIVS
 app.layout = html.Div([
     html.Div([
+        html.Div([
+            html.Label('State Selection', style={'font-size': '18px', 'color': 'white'}),
+            dcc.Dropdown(
+                id='state-dropdown',  # every uniqu div needs a unique id -> dont forget 
+                options=[{'label': state, 'value': state} for state in df['state'].unique()], # takes all unique states and puts them in the drop down
+                value='Cali',
+                clearable=False # this implies something is always selected, default val = Cali 
+            )
+        ], style={'width': '49%', 'display': 'inline-block'}),
 
         html.Div([
-            
-            html.Div([
-                html.Label('Model selection'),], style={'font-size': '18px'}),
-            
+            html.Label('Service Provider Selection', style={'font-size': '18px', 'color': 'white'}),
             dcc.Dropdown(
-                id='crossfilter-model',
-                options=[ 
-            		{'label' : 'Principal Component Analysis', 'value' : 'PCA'}, 
-					{'label' : 'Uniform Manifold Appriximation and Projection', 'value' : 'UMAP'},
-					{'label' : 'Autoencoder', 'value' : 'AE'},
-					{'label' : 'Variational Autoencoder', 'value' : 'VAE'}
-                ],
-                value = 'PCA', 
-				clearable = False # to make sure atleast one thingis always selected and doesnt get cleared
-          
-            )], style={'width': '49%', 'display': 'inline-block'}
-        ),
-
-        html.Div([
-            
-            html.Div([
-                html.Label('Feature selection'),], style={'font-size': '18px', 'width': '40%', 'display': 'inline-block'}),
-            
-            html.Div([
-                    dcc.RadioItems(
-                        id='gradient-scheme',
-                        options=[
-                            {'label': 'Orange to Red', 'value': 'OrRd'}, 
-                            {'label': 'Viridis', 'value': 'Viridis'}, 
-                            {'label': 'Plasma', 'value': 'Plasma'}, 
-                        ],
-                        value='Plasma',
-                        labelStyle={'float': 'right', 'display': 'inline-block', 'margin-right': 10, 'color': 'white'}
-                    ),
-                ], style={'width': '49%', 'display': 'inline-block', 'float': 'right'}),
-            
-            dcc.Dropdown(
-                id='crossfilter-feature',
-                options= [{'label' : i, 'value' : i} for i in df['state'].unique()], 
-                value='None',
+                id='provider-dropdown',
+                options=[{'label': provider, 'value': provider} for provider in df['service provider'].unique()],
+                value='Provider A',
                 clearable=False
-            )], style={'width': '49%', 'float': 'right', 'display': 'inline-block'}
-        
-        )], style={'backgroundColor': 'rgb(17, 17, 17)', 'padding': '10px 5px'}
-    ),
+            )
+        ], style={'width': '49%', 'display': 'inline-block', 'float': 'right'})
+    ], style={'backgroundColor': 'rgb(17, 17, 17)', 'padding': '10px 5px'}),
 
     html.Div([
-
-        dcc.Graph(
-            id= 'SCATTER-PLOT',
-            hoverData={'points': [{'customdata': 0}]}
-        )
-
-    ], style={'width': '100%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+        dcc.Graph(id='pie-chart')
+    ], style={'width': '100%', 'display': 'inline-block', 'padding': '0 20'}),
     
     html.Div([
-        dcc.Graph(id='point-plot'),
-    ], style={'display': 'inline-block', 'width': '100%'}),
+        dcc.Graph(id='scatter-plot')
+    ], style={'width': '100%', 'display': 'inline-block', 'padding': '0 20'}),
+], style={'backgroundColor': 'rgb(0, 0, 0)'})
 
-    ], style={'backgroundColor': 'rgb(17, 17, 17)'},
-)
 
 
 @app.callback(
-    dash.dependencies.Output('scatter-plot', 'figure'), 
+    dash.dependencies.Output('pie-chart', 'figure'),
+    [dash.dependencies.Input('state-dropdown', 'value'),
+     dash.dependencies.Input('provider-dropdown', 'value')]
+)
+def update_pie_chart(selected_state, selected_provider):
+    filtered_df = df[(df['state'] == selected_state) & (df['service provider'] == selected_provider)]
+    age_counts = filtered_df['age of device'].value_counts().reset_index()
+    age_counts.columns = ['age of device', 'count']
+    
+    fig = px.pie(
+        age_counts, 
+        names='age of device', 
+        values='count',
+        title=f'Distribution of Device Ages for {selected_provider} in {selected_state}',
+        color_discrete_sequence=px.colors.sequential.Viridis
+    )
+    fig.update_layout(
+        paper_bgcolor='rgb(17, 17, 17)',
+        plot_bgcolor='rgb(17, 17, 17)',
+        font=dict(color='white')
+    )
+    return fig
+
+
+# Callback for updating the scatter plot based on state and service provider
+@app.callback(
+    dash.dependencies.Output ('scatter-plot', 'figure'),
     [
-        dash.dependencies.Input('crossfilter-feature', 'value'),
-        dash.dependencies.Input('crossfilter-feature', 'value'),
-        dash.dependencies.Input('gradient-scheme', 'value'),
+        dash.dependencies.Input('state-dropdown', 'value'),
+        dash.dependencies.Input('provider-dropdown', 'value')
     ]
 )
-def update_graph(feature, model, gradient):
-    fig = px.scatter (
-        df, 
-        x = df[f'{model.lower()}_x'],
-        y = df[f'{model.lower()}_y'],
-        opacity = 0.8, 
-        template = 'plotly_dark',
-        colour_coninout_scare = gradient
-    ) 
+def update_scatter_plot(selected_state, selected_provider):
+    filtered_df = df[(df['state'] == selected_state) & (df['service provider'] == selected_provider)]
+    fig = px.scatter(
+        filtered_df,
+        x='throughput', # defines x axis
+        y='latency', # defines y axis
+        color='video resolution', # the colour of the point is decides using the video resolution value 
+        size='age of device',
+        hover_data=['resolution switches'],
+        title=f'Scatter plot for {selected_provider} in {selected_state}'
+    )
+    fig.update_layout(
+        paper_bgcolor='rgb(17, 17, 17)',
+        plot_bgcolor='rgb(17, 17, 17)',
+        font=dict(color='white')
+    )
+    return fig
 
 
-def create_point_plot(df, title):
-    return None
-
-
-@app.callback(
-    ###
-)
-def update_point_plot(hoverData):
-    return None
-
-# connecting and starting the server 
+# Run the app
 if __name__ == '__main__':
-    app.run_server(port =5000)
-
+    app.run_server(debug=True, port=5000)
