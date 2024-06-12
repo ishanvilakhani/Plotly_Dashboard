@@ -1,143 +1,109 @@
-# import dash
-# import pandas as pd
-# from dash import dcc
-# from dash import dbc
-# from dash import html
-# from dash import dash_table
-
-# # just incase i forget what div or any otheer tool does
-# # help(html.Div) 
-# # help(dcc.Div) 
-
-# external_stylesheets = [dbc.themes.DARKLY]
-# app = dash.Dash()
-# df = pd.read_csv('dummy_data.csv')
-
-# output_data = ['hi']
-# app.layout = html.Div([
-#     html.H1(
-#             children = 'YOUR DATA DASHBOARD', 
-#             style = { 
-#                     'textAlign' : 'center', 
-#                     'color' : '#780276'
-#                     }
-#             ), 
-#     html.Div(output_data), 
-
-#     dcc.Graph(
-#         id = 'sample_graph',
-#         figure = { 
-#             'data' : [{'x': [5,6,7], 'y':[12,15,187], 'type':'bar', 'name':'SF'}, {'x': [5,6,7], 'y':[12,15,187], 'type':'bar', 'name':'SF2'}], 
-#             'layout' : {
-#                 'plot_bgcolor' : '#780276', 
-#                 'paper_bgcolor' : '#000000',
-#                 'title' : 'BASIC BAR CHART',
-#                 'font': {
-#                     'color' : '#FFFFFF'
-#                 }
-#             }
-#         }
-#     )
-# ])
-
-# # connecting and starting the server 
-# if __name__ == '__main__':
-#     app.run_server(port =5000)
-
-
-
-
-# # output_data = ['hi']
-# # app.layout = html.Div([
-# #     html.H1(
-# #             children = 'YOUR DATA DASHBOARD', 
-# #             style = { 
-# #                     'textAlign' : 'center', 
-# #                     'color' : '#780276'
-# #                     }
-# #             ), 
-# #     html.Div(output_data), 
-
-# #     dcc.Graph(
-# #         id = 'sample_graph',
-# #         figure = { 
-# #             'data' : [{'x': [5,6,7], 'y':[12,15,187], 'type':'bar', 'name':'SF'}, {'x': [5,6,7], 'y':[12,15,187], 'type':'bar', 'name':'SF2'}], 
-# #             'layout' : {
-# #                 'plot_bgcolor' : '#780276', 
-# #                 'paper_bgcolor' : '#000000',
-# #                 'title' : 'BASIC BAR CHART',
-# #                 'font': {
-# #                     'color' : '#FFFFFF'
-# #                 }
-# #             }
-# #         }
-# #     )
-# # ])
-
-
-
-
-# import dash
-# import pandas as pd
-# from dash import dcc
-# from dash import dbc
-# from dash import html
-# from dash import dash_table
-
-# # just incase I forget what div or any other tool does
-# # help(html.Div) 
-# # help(dcc.Div) 
-
-# external_stylesheets = [dbc.themes.DARKLY]
-# app = dash.Dash()
-# df = pd.read_csv('dummy_data.csv')
-
-# html.Div ([ # big div that includes the whole page 
-
-# # figure out how to divide the page and make the divs accordingly
-# # every interactive component needs a unqiue id 
-
-
-# ])
-
-# # if theres a call bak what it means is if trheres a change in thi function -> use these values and update and clal this function 
-# # call backs usually have 2 things -> outputs and inputs 
-
-
 import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 import plotly.express as px
 import pandas as pd
 
-external_stylesheets = [dbc.themes.DARKLY]
+dark_mode = [dbc.themes.DARKLY]
+app = dash.Dash(__name__, title='Data Dashboard', external_stylesheets=[dark_mode])
 
-# read data and store as df 
-data = pd.read_csv('dummy_data.csv')
-df = pd.DataFrame(data)
+df = pd.read_csv('dummy_data.csv')
 
-# make it dark theme cause thats cooler 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app.layout = html.Div([
+    html.Div([
 
-# Define the layout of the app
-app.layout = dbc.Container(
-    [
-        dbc.Row(
-            dbc.Col(
-                html.H1("Bar Chart Example", className="text-center mt-4")
-            )
+        html.Div([
+            
+            html.Div([
+                html.Label('Model selection'),], style={'font-size': '18px'}),
+            
+            dcc.Dropdown(
+                id='crossfilter-model',
+                options=[ 
+            		{'label' : 'Principal Component Analysis', 'value' : 'PCA'}, 
+					{'label' : 'Uniform Manifold Appriximation and Projection', 'value' : 'UMAP'},
+					{'label' : 'Autoencoder', 'value' : 'AE'},
+					{'label' : 'Variational Autoencoder', 'value' : 'VAE'}
+                ],
+                value = 'PCA', 
+				clearable = False # to make sure atleast one thingis always selected and doesnt get cleared
+          
+            )], style={'width': '49%', 'display': 'inline-block'}
         ),
-        dbc.Row(
-            dbc.Col(
-                dcc.Graph(
-                    id='bar-chart',
-                    figure=px.bar(df, x='service provider', y='age of device', title='Sample Bar Chart')
-                )
-            )
+
+        html.Div([
+            
+            html.Div([
+                html.Label('Feature selection'),], style={'font-size': '18px', 'width': '40%', 'display': 'inline-block'}),
+            
+            html.Div([
+                    dcc.RadioItems(
+                        id='gradient-scheme',
+                        options=[
+                            {'label': 'Orange to Red', 'value': 'OrRd'}, 
+                            {'label': 'Viridis', 'value': 'Viridis'}, 
+                            {'label': 'Plasma', 'value': 'Plasma'}, 
+                        ],
+                        value='Plasma',
+                        labelStyle={'float': 'right', 'display': 'inline-block', 'margin-right': 10, 'color': 'white'}
+                    ),
+                ], style={'width': '49%', 'display': 'inline-block', 'float': 'right'}),
+            
+            dcc.Dropdown(
+                id='crossfilter-feature',
+                options= [{'label' : i, 'value' : i} for i in df['state'].unique()], 
+                value='None',
+                clearable=False
+            )], style={'width': '49%', 'float': 'right', 'display': 'inline-block'}
+        
+        )], style={'backgroundColor': 'rgb(17, 17, 17)', 'padding': '10px 5px'}
+    ),
+
+    html.Div([
+
+        dcc.Graph(
+            id= 'SCATTER-PLOT',
+            hoverData={'points': [{'customdata': 0}]}
         )
-    ],
-    fluid=True
+
+    ], style={'width': '100%', 'height':'90%', 'display': 'inline-block', 'padding': '0 20'}),
+    
+    html.Div([
+        dcc.Graph(id='point-plot'),
+    ], style={'display': 'inline-block', 'width': '100%'}),
+
+    ], style={'backgroundColor': 'rgb(17, 17, 17)'},
 )
+
+
+@app.callback(
+    dash.dependencies.Output('scatter-plot', 'figure'), 
+    [
+        dash.dependencies.Input('crossfilter-feature', 'value'),
+        dash.dependencies.Input('crossfilter-feature', 'value'),
+        dash.dependencies.Input('gradient-scheme', 'value'),
+    ]
+)
+def update_graph(feature, model, gradient):
+    fig = px.scatter (
+        df, 
+        x = df[f'{model.lower()}_x'],
+        y = df[f'{model.lower()}_y'],
+        opacity = 0.8, 
+        template = 'plotly_dark',
+        colour_coninout_scare = gradient
+    ) 
+
+
+def create_point_plot(df, title):
+    return None
+
+
+@app.callback(
+    ###
+)
+def update_point_plot(hoverData):
+    return None
 
 # connecting and starting the server 
 if __name__ == '__main__':
