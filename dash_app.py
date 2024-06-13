@@ -27,23 +27,23 @@ app.layout = html.Div([
     ], style={'padding': '10px'}),
     html.Div([
         html.Div([
-            html.Label('Select State:', style={'color': 'white'}),
+            html.Label('Select State:', style={'font-size': '18px', 'color': 'white'}),
             dcc.RadioItems(
                 id='state-radio',
                 options=[{'label': state, 'value': state} for state in df['state'].unique()],
                 value='California'
             )
-        ]),
+        ], style={'padding': '10px', 'color': 'white'}),
         html.Div([
-            html.Label('Select Service Provider:', style={'color': 'white'}),
+            html.Label('Select Service Provider:', style={'font-size': '18px', 'color': 'white'}),
             dcc.RadioItems(
                 id='provider-radio',
                 options=[{'label': provider, 'value': provider} for provider in ['A', 'B', 'C', 'D', 'E']],
                 value='A'
             )
-        ]),
+        ], style={'padding': '10px', 'color': 'white'}),
         html.Div([
-            html.Label('Select Aggregate Type:', style={'color': 'white'}),
+            html.Label('Select Aggregate Type:', style={'font-size': '18px', 'color': 'white'}),
             dcc.RadioItems(
                 id='aggregate-radio',
                 options=[
@@ -54,9 +54,9 @@ app.layout = html.Div([
                 ],
                 value='average'
             )
-        ]),
+        ], style={'padding': '10px', 'color': 'white'}),
         html.Div([
-            html.Label('Select Time Frame:', style={'color': 'white'}),
+            html.Label('Select Time Frame:', style={'font-size': '18px', 'color': 'white'}),
             dcc.RadioItems(
                 id='timeframe-radio',
                 options=[
@@ -66,7 +66,7 @@ app.layout = html.Div([
                 ],
                 value='monthly'
             )
-        ])
+        ], style={'padding': '10px', 'color': 'white'})
     ], style={'float': 'right', 'width': '20%', 'padding': '10px'}),
     html.Div([
         dcc.Graph(id='line-graph')
@@ -76,7 +76,7 @@ app.layout = html.Div([
                 html.Div([
                     html.Label('State Selection', style={'font-size': '18px', 'color': 'white'}),
                     dcc.Dropdown(
-                        id='state-dropdown',  # every uniqu div needs a unique id -> dont forget 
+                        id='state-dropdown',  # every unique div needs a unique id -> dont forget 
                         options=[{'label': state, 'value': state} for state in df['state'].unique()], # takes all unique states and puts them in the drop down
                         value='Cali',
                         clearable=False # this implies something is always selected, default val = Cali 
@@ -102,7 +102,7 @@ app.layout = html.Div([
                 dcc.Graph(id='scatter-plot')
             ], style={'width': '100%', 'display': 'inline-block', 'padding': '0 20'}),
         ], style={'backgroundColor': 'rgb(0, 0, 0)'})
-])
+], style={'backgroundColor': 'rgb(17, 17, 17)', 'padding': '10px 5px'})
 
 
 @app.callback(
@@ -115,15 +115,16 @@ app.layout = html.Div([
         dash.dependencies.Input('feature-dropdown', 'value')
     ]
 )
+
 def update_graph(state, provider, aggregate, timeframe, selected_features):
-    dff = df[(df['State'] == state) & (df['Provider'] == provider)]
+    dff = df[(df['state'] == state) & (df['service provider'] == provider)]
     
     if timeframe == 'monthly':
-        dff = dff.resample('M', on='Date').mean()
+        dff = dff.set_index('date').resample('M').mean().reset_index()
     elif timeframe == 'weekly':
-        dff = dff.resample('W', on='Date').mean()
+        dff = dff.set_index('date').resample('W').mean().reset_index()
     else:
-        dff = dff.resample('D', on='Date').mean()
+        dff = dff.set_index('date').resample('D').mean().reset_index()
 
     if aggregate == 'median':
         dff = dff.median()
@@ -135,25 +136,46 @@ def update_graph(state, provider, aggregate, timeframe, selected_features):
         dff = dff.mean()
 
     if not selected_features:
-        selected_features = ['Throughput', 'Latency', 'Video Resolution', 'Age of Device', 'Resolution Switches']
+        selected_features = ['throughput', 'latency', 'video resolution', 'age of device', 'resolution switches']
 
     data = []
     for feature in selected_features:
-        data.append(go.Scatter(x=dff.index, y=dff[feature], mode='lines', name=feature))
-
-    return {
-        'data': data,
-        'layout': go.Layout(
-            title='Network Performance',
-            xaxis={'title': 'Date'},
-            yaxis={'title': 'Value'}
+        fig = px.line(dff, x='date', y=feature, title=f'Network Performance - {feature}')
+        fig.update_layout(
+            paper_bgcolor='rgb(17, 17, 17)',
+            plot_bgcolor='rgb(17, 17, 17)',
+            font=dict(color='white'),
+            xaxis=dict(title='Date', color='white'),
+            yaxis=dict(title='Value', color='white'),
+            title=dict(font=dict(color='white'))
         )
-    }
+        data.append(fig)
+
+    # Create a combined figure with subplots if multiple features are selected
+    if len(data) > 1:
+        fig = make_subplots(rows=len(data), cols=1, shared_xaxes=True)
+        for i, single_fig in enumerate(data):
+            for trace in single_fig['data']:
+                fig.add_trace(trace, row=i+1, col=1)
+        fig.update_layout(
+            height=400*len(data),
+            paper_bgcolor='rgb(17, 17, 17)',
+            plot_bgcolor='rgb(17, 17, 17)',
+            font=dict(color='white'),
+            title='Network Performance'
+        )
+    else:
+        fig = data[0]
+
+    return fig
+
 
 @app.callback(
     dash.dependencies.Output('pie-chart', 'figure'),
-    [dash.dependencies.Input('state-dropdown', 'value'),
-     dash.dependencies.Input('provider-dropdown', 'value')]
+    [
+        dash.dependencies.Input('state-dropdown', 'value'),
+        dash.dependencies.Input('provider-dropdown', 'value')
+    ]
 )
 def update_pie_chart(selected_state, selected_provider):
     filtered_df = df[(df['state'] == selected_state) & (df['service provider'] == selected_provider)]
